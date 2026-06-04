@@ -1,0 +1,26 @@
+[Unit]
+Description=WiFi Performance Meter Node.js server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/wifiperf
+ExecStart=/usr/bin/node /opt/wifiperf/server/server.js
+Environment=PORT=3000
+# Optional: set a custom location label shown to testers (otherwise auto-detected).
+# Environment=SERVER_LOCATION=My Site Name
+Restart=always
+RestartSec=3
+User=pi
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+CapabilityBoundingSet=
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,26 @@
+{
+  "name": "wifi-perf-meter",
+  "version": "1.0.0",
+  "description": "Browser-based WiFi/network performance meter with a lightweight Node.js server for Raspberry Pi (ARM) and any host.",
+  "type": "commonjs",
+  "main": "server/server.js",
+  "keywords": [
+    "wifi",
+    "speedtest",
+    "network",
+    "latency",
+    "throughput",
+    "raspberry-pi",
+    "websocket"
+  ],
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "license": "MIT"
+}

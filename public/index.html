@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <title>WiFi Performance Meter</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero card">
+      <div>
+        <p class="eyebrow" data-i18n="hero.eyebrow">LAN speed test</p>
+        <h1 data-i18n="hero.title">WiFi Performance Meter</h1>
+        <p class="subtitle" data-i18n="hero.subtitle">Measure latency, jitter, packet loss, download and upload throughput against this same-origin server.</p>
+      </div>
+      <button id="startStop" class="primary-button" type="button" data-i18n="btn.start">Start test</button>
+    </section>
+
+    <section id="locationCard" class="location card">
+      <span id="locationBadge" class="loc-badge loc-cloud" data-i18n="loc.detecting">Detecting…</span>
+      <div class="loc-text">
+        <span class="loc-prefix" data-i18n="loc.prefix">Server location</span>
+        <strong id="locationName" data-i18n="loc.detecting">Detecting…</strong>
+        <span id="locationSub" class="loc-sub"></span>
+      </div>
+    </section>
+
+    <section class="status card" aria-live="polite">
+      <div class="status-row">
+        <span id="statusText">Ready to test.</span>
+        <span id="phasePercent">0%</span>
+      </div>
+      <div class="progress-track" aria-hidden="true"><div id="progressBar" class="progress-bar"></div></div>
+    </section>
+
+    <section id="scoreCard" class="score card" hidden aria-live="polite">
+      <div class="score-ring-wrap">
+        <svg class="score-ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="52"></circle>
+          <circle id="scoreRing" cx="60" cy="60" r="52"></circle>
+        </svg>
+        <div class="score-center">
+          <strong id="scoreValue">—</strong>
+          <span class="score-out">/ 100</span>
+        </div>
+      </div>
+      <div class="score-detail">
+        <p class="eyebrow" data-i18n="score.eyebrow">Network quality</p>
+        <div class="score-grade-row">
+          <span id="scoreGrade" class="score-grade">—</span>
+          <span id="scoreLabel" class="score-label" data-i18n="score.labelInit">Run a test to rate this network</span>
+        </div>
+        <p id="scoreBreakdown" class="subtext" data-i18n="score.breakdownInit">A single 0–100 rating combining latency, jitter, packet loss, download and upload — so you can compare networks at a glance.</p>
+      </div>
+    </section>
+
+    <section class="metrics" aria-label="Measurements">
+      <article class="metric-card card accent-latency">
+        <div class="metric-head"><span data-i18n="metric.latency">Latency</span><span class="unit" data-i18n="metric.latency.unit">avg</span></div>
+        <div class="metric-body">
+          <div><strong id="latencyValue">—</strong><span> ms</span></div>
+          <svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18"></circle><circle id="latencyRing" cx="22" cy="22" r="18"></circle></svg>
+        </div>
+        <p id="latencySub" class="subtext" data-i18n="latency.subInit">min — / max —</p>
+      </article>
+
+      <article class="metric-card card accent-jitter">
+        <div class="metric-head"><span data-i18n="metric.jitter">Jitter</span><span class="unit" data-i18n="metric.jitter.unit">mean Δ</span></div>
+        <div class="metric-body">
+          <div><strong id="jitterValue">—</strong><span> ms</span></div>
+          <svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18"></circle><circle id="jitterRing" cx="22" cy="22" r="18"></circle></svg>
+        </div>
+        <p class="subtext" data-i18n="metric.jitter.sub">lower is smoother</p>
+      </article>
+
+      <article class="metric-card card accent-loss">
+        <div class="metric-head"><span data-i18n="metric.loss">Packet loss</span><span class="unit" data-i18n="metric.loss.unit">WS pings</span></div>
+        <div class="metric-body">
+          <div><strong id="lossValue">—</strong><span> %</span></div>
+          <svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18"></circle><circle id="lossRing" cx="22" cy="22" r="18"></circle></svg>
+        </div>
+        <p id="lossSub" class="subtext" data-i18n="loss.subInit">0 / 25 received</p>
+      </article>
+
+      <article class="metric-card card accent-download">
+        <div class="metric-head"><span data-i18n="metric.download">Download</span><span class="unit" data-i18n="metric.live">live</span></div>
+        <div class="metric-body">
+          <div><strong id="downloadValue">—</strong><span> Mbps</span></div>
+          <svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18"></circle><circle id="downloadRing" cx="22" cy="22" r="18"></circle></svg>
+        </div>
+        <p class="subtext" data-i18n="metric.download.sub">parallel fetch streams</p>
+      </article>
+
+      <article class="metric-card card accent-upload">
+        <div class="metric-head"><span data-i18n="metric.upload">Upload</span><span class="unit" data-i18n="metric.live">live</span></div>
+        <div class="metric-body">
+          <div><strong id="uploadValue">—</strong><span> Mbps</span></div>
+          <svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18"></circle><circle id="uploadRing" cx="22" cy="22" r="18"></circle></svg>
+        </div>
+        <p class="subtext" data-i18n="metric.upload.sub">parallel POST uploads</p>
+      </article>
+    </section>
+
+    <section id="summary" class="summary card" hidden>
+      <h2 data-i18n="summary.title">Summary</h2>
+      <p id="summaryText" data-i18n="summary.init">Run a test to see results.</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span id="serverInfo" data-i18n="footer.serverUnavailable">Server info unavailable.</span>
+    <span id="serverTime"></span>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
