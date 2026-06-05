@@ -17,7 +17,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
@@ -47,14 +46,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
+ 
+       - name: 'Deploy to Azure Web App'
+         id: deploy-to-webapp
+         uses: azure/webapps-deploy@v3
+         with:
+           app-name: 'pipemeter'
+           slot-name: 'Production'
+           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+           package: .
       
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_3D047C295CE14AFCA9A2149C29057984 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_088FD508E54F476A98456A08EBD9550B }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_FEF1C1A76F3849B0A2D951ADC9348BDE }}
-
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
