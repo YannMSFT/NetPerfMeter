@@ -12,6 +12,7 @@
   var UPLOAD_BYTES = 4 * 1024 * 1024;
   var RING_CIRCUMFERENCE = 113;
   var SCORE_CIRCUMFERENCE = 2 * Math.PI * 52;
+  var MAP_ZOOM = 3;
 
   // Weights and 0–100 mapping anchors for the combined Network Quality Score.
   var SCORE_WEIGHTS = { download: 0.30, upload: 0.20, latency: 0.25, jitter: 0.10, loss: 0.15 };
@@ -268,6 +269,7 @@
     locationName: document.getElementById('locationName'),
     locationSub: document.getElementById('locationSub'),
     locationMap: document.getElementById('locationMap'),
+    locationMapImg: document.getElementById('locationMapImg'),
     locationMarker: document.getElementById('locationMarker'),
     locationOverlay: document.getElementById('locationOverlay'),
     locLine: document.getElementById('locLine'),
@@ -720,9 +722,18 @@
     }
 
     serverGeo = { lat: lat, lon: lon };
-    var serverXY = projectPercent(lat, lon);
-    el.locationMarker.style.left = serverXY.x + '%';
-    el.locationMarker.style.top = serverXY.y + '%';
+
+    // Zoom the map MAP_ZOOM× centered on the server. The image is CSS-transformed so the
+    // server world point lands at the container centre; markers/line are placed in the
+    // same zoomed container space (see toContainerPercent) so everything stays aligned.
+    var s = projectPercent(lat, lon);
+    el.locationMapImg.style.transformOrigin = '0 0';
+    el.locationMapImg.style.transform =
+      'translate(50%, 50%) scale(' + MAP_ZOOM + ') translate(' + (-s.x) + '%, ' + (-s.y) + '%)';
+
+    // Server marker sits at the centre of the zoomed view.
+    el.locationMarker.style.left = '50%';
+    el.locationMarker.style.top = '50%';
     el.locationMarker.hidden = false;
     el.locationMap.hidden = false;
 
@@ -736,6 +747,14 @@
   // Equirectangular (plate-carrée) projection matching world.svg (viewBox 0 0 1000 500).
   function projectPercent(lat, lon) {
     return { x: (lon + 180) / 360 * 100, y: (90 - lat) / 180 * 100 };
+  }
+
+  // Maps a world point to its on-screen percent within the zoomed container, using the
+  // same centre-on-server, scale-by-MAP_ZOOM transform applied to the map image.
+  function toContainerPercent(lat, lon) {
+    var w = projectPercent(lat, lon);
+    var s = projectPercent(serverGeo.lat, serverGeo.lon);
+    return { x: 50 + MAP_ZOOM * (w.x - s.x), y: 50 + MAP_ZOOM * (w.y - s.y) };
   }
 
   function hideClientLink() {
@@ -760,8 +779,8 @@
   // Draws the client marker, the connecting line, and the great-circle distance.
   function drawClientLink() {
     if (!clientGeo || !serverGeo || el.locationMap.hidden) { return; }
-    var c = projectPercent(clientGeo.lat, clientGeo.lon);
-    var s = projectPercent(serverGeo.lat, serverGeo.lon);
+    var c = toContainerPercent(clientGeo.lat, clientGeo.lon);
+    var s = { x: 50, y: 50 };
 
     el.clientMarker.style.left = c.x + '%';
     el.clientMarker.style.top = c.y + '%';
