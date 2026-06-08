@@ -34,8 +34,8 @@
   // ---- Internationalization (auto-detects French browsers) ----
   var I18N = {
     en: {
-      'hero.eyebrow': 'LAN speed test',
-      'hero.title': 'WiFi Performance Meter',
+      'hero.eyebrow': 'Network speed test',
+      'hero.title': 'Pipe Meter',
       'hero.subtitle': 'Measure latency, jitter, packet loss, download and upload throughput against this same-origin server.',
       'btn.start': 'Start test',
       'btn.stop': 'Stop',
@@ -110,8 +110,8 @@
       'error.generic': 'The test could not complete.'
     },
     fr: {
-      'hero.eyebrow': 'Test de débit LAN',
-      'hero.title': 'Mesure de performance WiFi',
+      'hero.eyebrow': 'Test de débit réseau',
+      'hero.title': 'Pipe Meter',
       'hero.subtitle': 'Mesurez la latence, la gigue, la perte de paquets et les débits descendant et montant vers ce serveur de même origine.',
       'btn.start': 'Lancer le test',
       'btn.stop': 'Arrêter',
