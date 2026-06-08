@@ -803,9 +803,7 @@
     var parts = [];
     if (loc.city) { parts.push(loc.city); }
     if (loc.country) { parts.push(loc.country); }
-    var geo = parts.join(', ');
-    if (info.hostname) { return geo ? geo + ' · ' + info.hostname : info.hostname; }
-    return geo;
+    return parts.join(', ');
   }
 
   function summaryLocationText(info) {

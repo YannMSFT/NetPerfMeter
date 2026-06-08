@@ -146,10 +146,10 @@ h2 {
 }
 
 .loc-map {
-  flex-basis: 100%;
-  max-width: 360px;
+  flex: 0 0 340px;
+  width: 340px;
+  max-width: 40%;
   position: relative;
-  margin-top: 4px;
   border-radius: 14px;
   overflow: hidden;
   background: color-mix(in srgb, var(--accent), transparent 92%);
@@ -157,6 +157,15 @@ h2 {
 }
 
 .loc-map[hidden] { display: none; }
+
+@media (max-width: 560px) {
+  .loc-map {
+    flex-basis: 100%;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 8px;
+  }
+}
 
 .loc-map-img {
   display: block;
@@ -277,6 +286,7 @@ h2 {
 
 .loc-text {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   min-width: 0;
   line-height: 1.3;
