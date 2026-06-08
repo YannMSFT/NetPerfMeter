@@ -147,6 +147,7 @@ h2 {
 
 .loc-map {
   flex-basis: 100%;
+  max-width: 360px;
   position: relative;
   margin-top: 4px;
   border-radius: 14px;
@@ -163,6 +164,64 @@ h2 {
   height: auto;
   opacity: 0.9;
 }
+
+.loc-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.loc-line {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  opacity: 0.85;
+  vector-effect: non-scaling-stroke;
+}
+
+.loc-line[hidden] { display: none; }
+
+.loc-client {
+  fill: var(--good);
+  stroke: #fff;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.loc-client[hidden] { display: none; }
+
+.loc-client-marker {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--good);
+  border: 2px solid #fff;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.loc-client-marker[hidden] { display: none; }
+
+.loc-distance {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg), transparent 15%);
+  border: 1px solid var(--line);
+}
+
+.loc-distance[hidden] { display: none; }
 
 .loc-marker {
   position: absolute;

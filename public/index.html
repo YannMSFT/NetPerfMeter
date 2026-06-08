@@ -27,7 +27,12 @@
       </div>
       <div id="locationMap" class="loc-map" hidden>
         <img class="loc-map-img" src="world.svg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        <svg id="locationOverlay" class="loc-overlay" viewBox="0 0 1000 500" preserveAspectRatio="none" aria-hidden="true">
+          <line id="locLine" class="loc-line" x1="0" y1="0" x2="0" y2="0" hidden></line>
+        </svg>
         <span id="locationMarker" class="loc-marker" hidden></span>
+        <span id="clientMarker" class="loc-client-marker" hidden></span>
+        <span id="locationDistance" class="loc-distance" hidden></span>
       </div>
     </section>
 
