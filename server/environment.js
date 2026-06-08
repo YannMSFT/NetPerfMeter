@@ -116,7 +116,13 @@ function friendlyRegionFromCode(code) {
 
 function friendlyRegionFromName(name) {
   const target = String(name).trim().toLowerCase();
-  const code = Object.keys(AZURE_REGIONS).find((key) => AZURE_REGIONS[key].name.toLowerCase() === target);
+  // App Service REGION_NAME may arrive either as a display name ("West Europe") or as
+  // the region code ("westeurope"). Match both: try the code key directly (after
+  // stripping spaces), then fall back to matching the human-readable name.
+  const codeGuess = target.replace(/\s+/g, '');
+  const code = AZURE_REGIONS[codeGuess]
+    ? codeGuess
+    : Object.keys(AZURE_REGIONS).find((key) => AZURE_REGIONS[key].name.toLowerCase() === target);
   if (code) {
     const entry = AZURE_REGIONS[code];
     return { region: name, displayName: `Azure ${entry.name}`, city: entry.city, country: entry.country, countryCode: entry.cc, lat: entry.lat, lon: entry.lon };
