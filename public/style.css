@@ -138,10 +138,56 @@ h2 {
 .location {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   margin-top: 16px;
   padding: 16px 18px;
   border-radius: 20px;
+}
+
+.loc-map {
+  flex-basis: 100%;
+  position: relative;
+  margin-top: 4px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent), transparent 92%);
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 80%);
+}
+
+.loc-map[hidden] { display: none; }
+
+.loc-map-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  opacity: 0.9;
+}
+
+.loc-marker {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent), transparent 40%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: loc-pulse 2s ease-out infinite;
+}
+
+.loc-marker[hidden] { display: none; }
+
+@keyframes loc-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent), transparent 40%); }
+  70% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent), transparent 100%); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent), transparent 100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loc-marker { animation: none; }
 }
 
 .loc-badge {

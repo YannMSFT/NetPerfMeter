@@ -264,7 +264,9 @@
     locationCard: document.getElementById('locationCard'),
     locationBadge: document.getElementById('locationBadge'),
     locationName: document.getElementById('locationName'),
-    locationSub: document.getElementById('locationSub')
+    locationSub: document.getElementById('locationSub'),
+    locationMap: document.getElementById('locationMap'),
+    locationMarker: document.getElementById('locationMarker')
   };
 
   var run = {
@@ -684,6 +686,31 @@
     el.locationBadge.className = 'loc-badge ' + (exposure === 'lan' ? 'loc-lan' : exposure === 'unknown' ? 'loc-unknown' : 'loc-cloud');
     el.locationName.textContent = (loc && loc.displayName) ? loc.displayName : t('loc.unknown');
     el.locationSub.textContent = locationSubText(info);
+    renderLocationMap(loc);
+  }
+
+  // Highlights the server's coordinates on the equirectangular world map. The map is
+  // shown only when the server reports lat/lon (Azure regions); LAN/Internet hosts
+  // have no resolvable position, so the map stays hidden.
+  function renderLocationMap(loc) {
+    if (!el.locationMap) { return; }
+    var lat = loc && typeof loc.lat === 'number' ? loc.lat : null;
+    var lon = loc && typeof loc.lon === 'number' ? loc.lon : null;
+    var hasCoords = isFinite(lat) && isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+
+    if (!hasCoords) {
+      el.locationMarker.hidden = true;
+      el.locationMap.hidden = true;
+      return;
+    }
+
+    // Same plate-carrée mapping used to render world.svg (viewBox 0 0 1000 500).
+    var x = (lon + 180) / 360 * 100;
+    var y = (90 - lat) / 180 * 100;
+    el.locationMarker.style.left = x + '%';
+    el.locationMarker.style.top = y + '%';
+    el.locationMarker.hidden = false;
+    el.locationMap.hidden = false;
   }
 
   function locationSubText(info) {

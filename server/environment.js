@@ -11,42 +11,42 @@ const net = require('net');
 
 // Azure region code -> friendly name + approximate datacenter geography.
 const AZURE_REGIONS = {
-  eastus: { name: 'East US', city: 'Virginia', country: 'United States', cc: 'US' },
-  eastus2: { name: 'East US 2', city: 'Virginia', country: 'United States', cc: 'US' },
-  centralus: { name: 'Central US', city: 'Iowa', country: 'United States', cc: 'US' },
-  northcentralus: { name: 'North Central US', city: 'Illinois', country: 'United States', cc: 'US' },
-  southcentralus: { name: 'South Central US', city: 'Texas', country: 'United States', cc: 'US' },
-  westus: { name: 'West US', city: 'California', country: 'United States', cc: 'US' },
-  westus2: { name: 'West US 2', city: 'Washington', country: 'United States', cc: 'US' },
-  westus3: { name: 'West US 3', city: 'Arizona', country: 'United States', cc: 'US' },
-  canadacentral: { name: 'Canada Central', city: 'Toronto', country: 'Canada', cc: 'CA' },
-  canadaeast: { name: 'Canada East', city: 'Quebec City', country: 'Canada', cc: 'CA' },
-  brazilsouth: { name: 'Brazil South', city: 'São Paulo', country: 'Brazil', cc: 'BR' },
-  northeurope: { name: 'North Europe', city: 'Dublin', country: 'Ireland', cc: 'IE' },
-  westeurope: { name: 'West Europe', city: 'Amsterdam', country: 'Netherlands', cc: 'NL' },
-  uksouth: { name: 'UK South', city: 'London', country: 'United Kingdom', cc: 'GB' },
-  ukwest: { name: 'UK West', city: 'Cardiff', country: 'United Kingdom', cc: 'GB' },
-  francecentral: { name: 'France Central', city: 'Paris', country: 'France', cc: 'FR' },
-  francesouth: { name: 'France South', city: 'Marseille', country: 'France', cc: 'FR' },
-  germanywestcentral: { name: 'Germany West Central', city: 'Frankfurt', country: 'Germany', cc: 'DE' },
-  switzerlandnorth: { name: 'Switzerland North', city: 'Zürich', country: 'Switzerland', cc: 'CH' },
-  norwayeast: { name: 'Norway East', city: 'Oslo', country: 'Norway', cc: 'NO' },
-  swedencentral: { name: 'Sweden Central', city: 'Gävle', country: 'Sweden', cc: 'SE' },
-  polandcentral: { name: 'Poland Central', city: 'Warsaw', country: 'Poland', cc: 'PL' },
-  italynorth: { name: 'Italy North', city: 'Milan', country: 'Italy', cc: 'IT' },
-  spaincentral: { name: 'Spain Central', city: 'Madrid', country: 'Spain', cc: 'ES' },
-  uaenorth: { name: 'UAE North', city: 'Dubai', country: 'United Arab Emirates', cc: 'AE' },
-  southafricanorth: { name: 'South Africa North', city: 'Johannesburg', country: 'South Africa', cc: 'ZA' },
-  centralindia: { name: 'Central India', city: 'Pune', country: 'India', cc: 'IN' },
-  southindia: { name: 'South India', city: 'Chennai', country: 'India', cc: 'IN' },
-  westindia: { name: 'West India', city: 'Mumbai', country: 'India', cc: 'IN' },
-  eastasia: { name: 'East Asia', city: 'Hong Kong', country: 'Hong Kong SAR', cc: 'HK' },
-  southeastasia: { name: 'Southeast Asia', city: 'Singapore', country: 'Singapore', cc: 'SG' },
-  japaneast: { name: 'Japan East', city: 'Tokyo', country: 'Japan', cc: 'JP' },
-  japanwest: { name: 'Japan West', city: 'Osaka', country: 'Japan', cc: 'JP' },
-  koreacentral: { name: 'Korea Central', city: 'Seoul', country: 'South Korea', cc: 'KR' },
-  australiaeast: { name: 'Australia East', city: 'Sydney', country: 'Australia', cc: 'AU' },
-  australiasoutheast: { name: 'Australia Southeast', city: 'Melbourne', country: 'Australia', cc: 'AU' },
+  eastus: { name: 'East US', city: 'Virginia', country: 'United States', cc: 'US', lat: 37.37, lon: -79.82 },
+  eastus2: { name: 'East US 2', city: 'Virginia', country: 'United States', cc: 'US', lat: 36.67, lon: -78.39 },
+  centralus: { name: 'Central US', city: 'Iowa', country: 'United States', cc: 'US', lat: 41.59, lon: -93.62 },
+  northcentralus: { name: 'North Central US', city: 'Illinois', country: 'United States', cc: 'US', lat: 41.88, lon: -87.63 },
+  southcentralus: { name: 'South Central US', city: 'Texas', country: 'United States', cc: 'US', lat: 29.42, lon: -98.49 },
+  westus: { name: 'West US', city: 'California', country: 'United States', cc: 'US', lat: 37.78, lon: -122.42 },
+  westus2: { name: 'West US 2', city: 'Washington', country: 'United States', cc: 'US', lat: 47.23, lon: -119.85 },
+  westus3: { name: 'West US 3', city: 'Arizona', country: 'United States', cc: 'US', lat: 33.45, lon: -112.07 },
+  canadacentral: { name: 'Canada Central', city: 'Toronto', country: 'Canada', cc: 'CA', lat: 43.65, lon: -79.38 },
+  canadaeast: { name: 'Canada East', city: 'Quebec City', country: 'Canada', cc: 'CA', lat: 46.81, lon: -71.21 },
+  brazilsouth: { name: 'Brazil South', city: 'São Paulo', country: 'Brazil', cc: 'BR', lat: -23.55, lon: -46.63 },
+  northeurope: { name: 'North Europe', city: 'Dublin', country: 'Ireland', cc: 'IE', lat: 53.35, lon: -6.26 },
+  westeurope: { name: 'West Europe', city: 'Amsterdam', country: 'Netherlands', cc: 'NL', lat: 52.37, lon: 4.90 },
+  uksouth: { name: 'UK South', city: 'London', country: 'United Kingdom', cc: 'GB', lat: 51.51, lon: -0.13 },
+  ukwest: { name: 'UK West', city: 'Cardiff', country: 'United Kingdom', cc: 'GB', lat: 51.48, lon: -3.18 },
+  francecentral: { name: 'France Central', city: 'Paris', country: 'France', cc: 'FR', lat: 48.85, lon: 2.35 },
+  francesouth: { name: 'France South', city: 'Marseille', country: 'France', cc: 'FR', lat: 43.30, lon: 5.37 },
+  germanywestcentral: { name: 'Germany West Central', city: 'Frankfurt', country: 'Germany', cc: 'DE', lat: 50.11, lon: 8.68 },
+  switzerlandnorth: { name: 'Switzerland North', city: 'Zürich', country: 'Switzerland', cc: 'CH', lat: 47.38, lon: 8.54 },
+  norwayeast: { name: 'Norway East', city: 'Oslo', country: 'Norway', cc: 'NO', lat: 59.91, lon: 10.75 },
+  swedencentral: { name: 'Sweden Central', city: 'Gävle', country: 'Sweden', cc: 'SE', lat: 60.67, lon: 17.14 },
+  polandcentral: { name: 'Poland Central', city: 'Warsaw', country: 'Poland', cc: 'PL', lat: 52.23, lon: 21.01 },
+  italynorth: { name: 'Italy North', city: 'Milan', country: 'Italy', cc: 'IT', lat: 45.46, lon: 9.19 },
+  spaincentral: { name: 'Spain Central', city: 'Madrid', country: 'Spain', cc: 'ES', lat: 40.42, lon: -3.70 },
+  uaenorth: { name: 'UAE North', city: 'Dubai', country: 'United Arab Emirates', cc: 'AE', lat: 25.20, lon: 55.27 },
+  southafricanorth: { name: 'South Africa North', city: 'Johannesburg', country: 'South Africa', cc: 'ZA', lat: -26.20, lon: 28.05 },
+  centralindia: { name: 'Central India', city: 'Pune', country: 'India', cc: 'IN', lat: 18.52, lon: 73.86 },
+  southindia: { name: 'South India', city: 'Chennai', country: 'India', cc: 'IN', lat: 13.08, lon: 80.27 },
+  westindia: { name: 'West India', city: 'Mumbai', country: 'India', cc: 'IN', lat: 19.08, lon: 72.88 },
+  eastasia: { name: 'East Asia', city: 'Hong Kong', country: 'Hong Kong SAR', cc: 'HK', lat: 22.32, lon: 114.17 },
+  southeastasia: { name: 'Southeast Asia', city: 'Singapore', country: 'Singapore', cc: 'SG', lat: 1.35, lon: 103.82 },
+  japaneast: { name: 'Japan East', city: 'Tokyo', country: 'Japan', cc: 'JP', lat: 35.68, lon: 139.69 },
+  japanwest: { name: 'Japan West', city: 'Osaka', country: 'Japan', cc: 'JP', lat: 34.69, lon: 135.50 },
+  koreacentral: { name: 'Korea Central', city: 'Seoul', country: 'South Korea', cc: 'KR', lat: 37.57, lon: 126.98 },
+  australiaeast: { name: 'Australia East', city: 'Sydney', country: 'Australia', cc: 'AU', lat: -33.87, lon: 151.21 },
+  australiasoutheast: { name: 'Australia Southeast', city: 'Melbourne', country: 'Australia', cc: 'AU', lat: -37.81, lon: 144.96 },
 };
 
 // Normalizes a socket address: strips IPv6 zone suffix ("%eth0") and unwraps
@@ -109,9 +109,9 @@ function classifyRemoteAddress(address) {
 function friendlyRegionFromCode(code) {
   const entry = AZURE_REGIONS[code];
   if (entry) {
-    return { region: code, displayName: `Azure ${entry.name}`, city: entry.city, country: entry.country, countryCode: entry.cc };
+    return { region: code, displayName: `Azure ${entry.name}`, city: entry.city, country: entry.country, countryCode: entry.cc, lat: entry.lat, lon: entry.lon };
   }
-  return { region: code, displayName: `Azure (${code})`, city: null, country: null, countryCode: null };
+  return { region: code, displayName: `Azure (${code})`, city: null, country: null, countryCode: null, lat: null, lon: null };
 }
 
 function friendlyRegionFromName(name) {
@@ -119,9 +119,9 @@ function friendlyRegionFromName(name) {
   const code = Object.keys(AZURE_REGIONS).find((key) => AZURE_REGIONS[key].name.toLowerCase() === target);
   if (code) {
     const entry = AZURE_REGIONS[code];
-    return { region: name, displayName: `Azure ${entry.name}`, city: entry.city, country: entry.country, countryCode: entry.cc };
+    return { region: name, displayName: `Azure ${entry.name}`, city: entry.city, country: entry.country, countryCode: entry.cc, lat: entry.lat, lon: entry.lon };
   }
-  return { region: name, displayName: `Azure ${name}`, city: null, country: null, countryCode: null };
+  return { region: name, displayName: `Azure ${name}`, city: null, country: null, countryCode: null, lat: null, lon: null };
 }
 
 // Queries the Azure Instance Metadata Service. Resolves with metadata, or null
@@ -230,7 +230,7 @@ async function detectEnvironmentInner(options = {}) {
   } else if (isAppService) {
     // App Service without REGION_NAME is still Azure, just without a resolved region.
     isAzure = true;
-    azureLocation = { region: null, displayName: 'Azure', city: null, country: null, countryCode: null, source: 'azure-appservice' };
+    azureLocation = { region: null, displayName: 'Azure', city: null, country: null, countryCode: null, lat: null, lon: null, source: 'azure-appservice' };
   }
 
   const manualLabel = (env.SERVER_LOCATION && String(env.SERVER_LOCATION).trim()) || null;
@@ -247,7 +247,7 @@ function buildEnvironmentView(cached, remoteAddress) {
 
   if (c.isAzure) {
     exposure = 'azure';
-    location = c.azureLocation || { region: null, displayName: 'Azure', city: null, country: null, countryCode: null, source: 'azure' };
+    location = c.azureLocation || { region: null, displayName: 'Azure', city: null, country: null, countryCode: null, lat: null, lon: null, source: 'azure' };
   } else {
     exposure = classifyRemoteAddress(remoteAddress);
     if (exposure === 'lan') {
