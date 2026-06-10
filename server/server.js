@@ -11,7 +11,19 @@ const HOST = '0.0.0.0';
 const MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024;
 const DEFAULT_DOWNLOAD_BYTES = 8 * 1024 * 1024;
 const CHUNK_SIZE = 64 * 1024;
+const MAX_UPLOAD_BYTES = parsePositiveIntegerEnv('MAX_UPLOAD_BYTES', 16 * 1024 * 1024);
+const REQUEST_TIMEOUT_MS = parsePositiveIntegerEnv('REQUEST_TIMEOUT_MS', 120_000);
+const HEADERS_TIMEOUT_MS = parsePositiveIntegerEnv('HEADERS_TIMEOUT_MS', 10_000);
+const UPLOAD_TIMEOUT_MS = parsePositiveIntegerEnv('UPLOAD_TIMEOUT_MS', 60_000);
+const DOWNLOAD_TIMEOUT_MS = parsePositiveIntegerEnv('DOWNLOAD_TIMEOUT_MS', 120_000);
+const MAX_ACTIVE_TRANSFERS_PER_IP = parsePositiveIntegerEnv('MAX_ACTIVE_TRANSFERS_PER_IP', 8);
+const WS_MAX_PAYLOAD_BYTES = parsePositiveIntegerEnv('WS_MAX_PAYLOAD_BYTES', 1024);
+const WS_RATE_WINDOW_MS = parsePositiveIntegerEnv('WS_RATE_WINDOW_MS', 10_000);
+const WS_MAX_MESSAGES_PER_WINDOW = parsePositiveIntegerEnv('WS_MAX_MESSAGES_PER_WINDOW', 120);
+const EXPOSE_SERVER_DETAILS = process.env.EXPOSE_SERVER_DETAILS === 'true';
+const ALLOWED_ORIGINS = parseAllowedOrigins(process.env.ALLOWED_ORIGINS);
 const randomChunk = crypto.randomBytes(CHUNK_SIZE);
+const activeTransfersByAddress = new Map();
 
 const rootDir = path.resolve(__dirname, '..');
 const publicDir = path.resolve(rootDir, 'public');
@@ -48,20 +60,98 @@ const contentTypes = new Map([
   ['.map', 'application/json; charset=utf-8'],
 ]);
 
-function setCorsHeaders(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+function parsePositiveIntegerEnv(name, fallback) {
+  const value = Number.parseInt(process.env[name] || '', 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function parseAllowedOrigins(value) {
+  if (!value) {
+    return new Set();
+  }
+  return new Set(String(value).split(',').map((origin) => origin.trim()).filter(Boolean));
+}
+
+function requestProtocol(req) {
+  const forwarded = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+  if (forwarded === 'https' || forwarded === 'http') {
+    return forwarded;
+  }
+  return req.socket && req.socket.encrypted ? 'https' : 'http';
+}
+
+function requestHost(req) {
+  return String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase();
+}
+
+function isSameOrigin(req, origin) {
+  let parsed;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    return false;
+  }
+
+  return parsed.host.toLowerCase() === requestHost(req) && parsed.protocol === `${requestProtocol(req)}:`;
+}
+
+function allowedRequestOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) {
+    return null;
+  }
+
+  const value = String(origin);
+  if (isSameOrigin(req, value) || ALLOWED_ORIGINS.has(value)) {
+    return value;
+  }
+
+  return false;
+}
+
+function isAllowedBrowserRequest(req) {
+  const origin = allowedRequestOrigin(req);
+  if (origin === false) {
+    return false;
+  }
+
+  // Blocks no-cors cross-site fetches/images that do not include an Origin header.
+  const fetchSite = String(req.headers['sec-fetch-site'] || '').toLowerCase();
+  return fetchSite !== 'cross-site';
+}
+
+function setSecurityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=(), payment=(), usb=()');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+  );
+}
+
+function setCorsHeaders(req, res) {
+  const origin = allowedRequestOrigin(req);
+  if (!origin) {
+    return;
+  }
+  res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Vary', 'Origin');
 }
 
 function sendText(res, statusCode, body) {
+  setSecurityHeaders(res);
   res.writeHead(statusCode, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end(body);
 }
 
 function sendJson(req, res, statusCode, body, extraHeaders = {}) {
+  setSecurityHeaders(res);
   if (isApiRequest(req)) {
-    setCorsHeaders(res);
+    setCorsHeaders(req, res);
   }
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -97,6 +187,29 @@ function safePublicPath(urlPathname) {
   return resolvedPath;
 }
 
+function remoteAddressKey(req) {
+  return (req.socket && req.socket.remoteAddress) || 'unknown';
+}
+
+function acquireTransferSlot(req, res) {
+  const key = remoteAddressKey(req);
+  const current = activeTransfersByAddress.get(key) || 0;
+  if (current >= MAX_ACTIVE_TRANSFERS_PER_IP) {
+    sendJson(req, res, 429, { error: 'Too many active transfers' }, { 'Retry-After': '5' });
+    return null;
+  }
+
+  activeTransfersByAddress.set(key, current + 1);
+  return () => {
+    const next = (activeTransfersByAddress.get(key) || 1) - 1;
+    if (next > 0) {
+      activeTransfersByAddress.set(key, next);
+    } else {
+      activeTransfersByAddress.delete(key);
+    }
+  };
+}
+
 async function serveStatic(req, res, url) {
   const filePath = safePublicPath(url.pathname);
   if (!filePath) {
@@ -118,6 +231,7 @@ async function serveStatic(req, res, url) {
   }
 
   const ext = path.extname(filePath).toLowerCase();
+  setSecurityHeaders(res);
   res.writeHead(200, {
     'Content-Type': contentTypes.get(ext) || 'application/octet-stream',
     'Content-Length': stat.size,
@@ -165,62 +279,125 @@ function waitForDrainOrClose(res) {
 }
 
 async function handleDownload(req, res, url) {
+  const releaseSlot = acquireTransferSlot(req, res);
+  if (!releaseSlot) {
+    return;
+  }
+
   const bytes = parseDownloadBytes(url.searchParams.get('bytes'));
   let closed = false;
+  const timeout = setTimeout(() => {
+    closed = true;
+    res.destroy();
+  }, DOWNLOAD_TIMEOUT_MS);
   res.on('close', () => {
     closed = true;
   });
 
-  setCorsHeaders(res);
-  res.writeHead(200, {
-    'Content-Type': 'application/octet-stream',
-    'Cache-Control': 'no-store',
-    'Content-Length': bytes,
-  });
+  try {
+    setSecurityHeaders(res);
+    setCorsHeaders(req, res);
+    res.writeHead(200, {
+      'Content-Type': 'application/octet-stream',
+      'Cache-Control': 'no-store',
+      'Content-Length': bytes,
+    });
 
-  let remaining = bytes;
-  while (remaining > 0 && !closed) {
-    const size = Math.min(remaining, CHUNK_SIZE);
-    const buffer = size === CHUNK_SIZE ? randomChunk : randomChunk.subarray(0, size);
-    remaining -= size;
+    let remaining = bytes;
+    while (remaining > 0 && !closed) {
+      const size = Math.min(remaining, CHUNK_SIZE);
+      const buffer = size === CHUNK_SIZE ? randomChunk : randomChunk.subarray(0, size);
+      remaining -= size;
 
-    if (!res.write(buffer) && !closed) {
-      await waitForDrainOrClose(res);
+      if (!res.write(buffer) && !closed) {
+        await waitForDrainOrClose(res);
+      }
     }
-  }
 
-  if (!closed) {
-    res.end();
+    if (!closed) {
+      res.end();
+    }
+  } finally {
+    clearTimeout(timeout);
+    releaseSlot();
   }
 }
 
 async function handleUpload(req, res) {
-  let received = 0;
-
-  const aborted = await new Promise((resolve) => {
-    req.on('data', (chunk) => {
-      received += chunk.length;
-    });
-    req.on('end', () => resolve(false));
-    req.on('error', () => resolve(true));
-    req.on('aborted', () => resolve(true));
-  });
-
-  // The client aborts outstanding uploads when its measurement window ends; that
-  // is expected, so finish quietly instead of treating it as a server error.
-  if (aborted || res.writableEnded || !res.writable) {
+  const releaseSlot = acquireTransferSlot(req, res);
+  if (!releaseSlot) {
     return;
   }
 
-  sendJson(req, res, 200, { received }, { 'Cache-Control': 'no-store' });
+  const contentLength = Number(req.headers['content-length']);
+  if (Number.isFinite(contentLength) && contentLength > MAX_UPLOAD_BYTES) {
+    releaseSlot();
+    sendJson(req, res, 413, { error: 'Upload too large' });
+    req.destroy();
+    return;
+  }
+
+  let received = 0;
+  let tooLarge = false;
+  const timeout = setTimeout(() => {
+    req.destroy(new Error('Upload timed out'));
+  }, UPLOAD_TIMEOUT_MS);
+
+  try {
+    const aborted = await new Promise((resolve) => {
+      let settled = false;
+      const done = (value) => {
+        if (!settled) {
+          settled = true;
+          resolve(value);
+        }
+      };
+
+      req.on('data', (chunk) => {
+        received += chunk.length;
+        if (received > MAX_UPLOAD_BYTES) {
+          tooLarge = true;
+          done(false);
+          req.destroy();
+        }
+      });
+      req.on('end', () => done(false));
+      req.on('error', () => done(true));
+      req.on('aborted', () => done(true));
+    });
+
+    if (tooLarge) {
+      if (!res.writableEnded && res.writable) {
+        sendJson(req, res, 413, { error: 'Upload too large' });
+      }
+      return;
+    }
+
+    // The client aborts outstanding uploads when its measurement window ends; that
+    // is expected, so finish quietly instead of treating it as a server error.
+    if (aborted || res.writableEnded || !res.writable) {
+      return;
+    }
+
+    sendJson(req, res, 200, { received }, { 'Cache-Control': 'no-store' });
+  } finally {
+    clearTimeout(timeout);
+    releaseSlot();
+  }
 }
 
 async function routeRequest(req, res) {
   const url = new URL(req.url, 'http://localhost');
 
   if (url.pathname.startsWith('/api/')) {
-    setCorsHeaders(res);
+    if (!isAllowedBrowserRequest(req)) {
+      sendJson(req, res, 403, { error: 'Forbidden' });
+      return;
+    }
+
     if (req.method === 'OPTIONS') {
+      setSecurityHeaders(res);
+      setCorsHeaders(req, res);
       res.writeHead(204);
       res.end();
       return;
@@ -231,11 +408,11 @@ async function routeRequest(req, res) {
     const env = await getEnvironment();
     const view = buildEnvironmentView(env, req.socket && req.socket.remoteAddress);
     sendJson(req, res, 200, {
-      version: packageJson.version,
+      version: EXPOSE_SERVER_DETAILS ? packageJson.version : '',
       serverTime: Date.now(),
-      platform: os.platform(),
-      arch: os.arch(),
-      hostname: view.hostname,
+      platform: EXPOSE_SERVER_DETAILS ? os.platform() : '',
+      arch: EXPOSE_SERVER_DETAILS ? os.arch() : '',
+      hostname: EXPOSE_SERVER_DETAILS ? view.hostname : '',
       exposure: view.exposure,
       location: view.location,
     });
@@ -284,8 +461,63 @@ const server = http.createServer((req, res) => {
     }
   });
 });
+server.requestTimeout = REQUEST_TIMEOUT_MS;
+server.headersTimeout = Math.min(HEADERS_TIMEOUT_MS, REQUEST_TIMEOUT_MS);
+server.keepAliveTimeout = 5_000;
 
-const wss = new WebSocketServer({ server, path: '/ws' });
+const wss = new WebSocketServer({
+  noServer: true,
+  maxPayload: WS_MAX_PAYLOAD_BYTES,
+  perMessageDeflate: false,
+});
+
+function isValidPingMessage(message) {
+  return message &&
+    message.type === 'ping' &&
+    Number.isSafeInteger(message.seq) &&
+    message.seq >= 0 &&
+    Number.isFinite(message.clientTime);
+}
+
+function isWithinWebSocketRateLimit(ws) {
+  const now = Date.now();
+  if (!ws.rateWindowStart || now - ws.rateWindowStart > WS_RATE_WINDOW_MS) {
+    ws.rateWindowStart = now;
+    ws.rateWindowMessages = 0;
+  }
+
+  ws.rateWindowMessages += 1;
+  return ws.rateWindowMessages <= WS_MAX_MESSAGES_PER_WINDOW;
+}
+
+function rejectUpgrade(socket, statusCode) {
+  socket.write(`HTTP/1.1 ${statusCode} Forbidden\r\nConnection: close\r\n\r\n`);
+  socket.destroy();
+}
+
+server.on('upgrade', (req, socket, head) => {
+  let pathname;
+  try {
+    pathname = new URL(req.url, 'http://localhost').pathname;
+  } catch {
+    rejectUpgrade(socket, 400);
+    return;
+  }
+
+  if (pathname !== '/ws') {
+    rejectUpgrade(socket, 404);
+    return;
+  }
+
+  if (!isAllowedBrowserRequest(req)) {
+    rejectUpgrade(socket, 403);
+    return;
+  }
+
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.emit('connection', ws, req);
+  });
+});
 
 wss.on('connection', (ws) => {
   ws.isAlive = true;
@@ -295,21 +527,30 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('message', (data) => {
+    if (!isWithinWebSocketRateLimit(ws)) {
+      ws.close(1008, 'Rate limit exceeded');
+      return;
+    }
+
     let message;
     try {
       message = JSON.parse(data.toString());
     } catch {
+      ws.close(1003, 'Invalid JSON');
       return;
     }
 
-    if (message && message.type === 'ping') {
-      ws.send(JSON.stringify({
-        type: 'pong',
-        seq: message.seq,
-        clientTime: message.clientTime,
-        serverTime: Date.now(),
-      }));
+    if (!isValidPingMessage(message)) {
+      ws.close(1008, 'Invalid message');
+      return;
     }
+
+    ws.send(JSON.stringify({
+      type: 'pong',
+      seq: message.seq,
+      clientTime: message.clientTime,
+      serverTime: Date.now(),
+    }));
   });
 
   ws.on('error', (error) => {
