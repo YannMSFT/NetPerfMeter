@@ -60,7 +60,6 @@
       'loc.badge.public': 'Internet',
       'loc.badge.azure': 'Azure',
       'loc.badge.unknown': 'Unknown',
-      'loc.distance': function (km) { return '~' + km + ' km to server'; },
       'score.labelInit': 'Run a test to rate this network',
       'score.breakdownInit': 'A single 0–100 rating combining latency, jitter, packet loss, download and upload — so you can compare networks at a glance.',
       'summary.title': 'Summary',
@@ -137,7 +136,6 @@
       'loc.badge.public': 'Internet',
       'loc.badge.azure': 'Azure',
       'loc.badge.unknown': 'Inconnu',
-      'loc.distance': function (km) { return '~' + km + ' km du serveur'; },
       'score.labelInit': 'Lancez un test pour évaluer ce réseau',
       'score.breakdownInit': 'Une note unique de 0 à 100 combinant latence, gigue, perte de paquets, téléchargement et envoi — pour comparer les réseaux d’un coup d’œil.',
       'summary.title': 'Résumé',
@@ -270,11 +268,7 @@
     locationSub: document.getElementById('locationSub'),
     locationMap: document.getElementById('locationMap'),
     locationMapImg: document.getElementById('locationMapImg'),
-    locationMarker: document.getElementById('locationMarker'),
-    locationOverlay: document.getElementById('locationOverlay'),
-    locLine: document.getElementById('locLine'),
-    clientMarker: document.getElementById('clientMarker'),
-    locationDistance: document.getElementById('locationDistance')
+    locationMarker: document.getElementById('locationMarker')
   };
 
   var run = {
@@ -285,11 +279,6 @@
     results: {},
     serverInfo: null
   };
-
-  // Cached map state: server + client coordinates and whether geolocation was attempted.
-  var serverGeo = null;
-  var clientGeo = null;
-  var clientGeoRequested = false;
 
   el.startStop.addEventListener('click', function () {
     if (run.active) {
@@ -704,9 +693,7 @@
 
   // Highlights the server's coordinates on the equirectangular world map. The map is
   // shown only when the server reports lat/lon (Azure regions); LAN/Internet hosts
-  // have no resolvable position, so the map stays hidden. When the server position is
-  // known, we also try to locate the client (Geolocation API) and draw a line plus the
-  // great-circle distance between the two.
+  // have no resolvable position, so the map stays hidden.
   function renderLocationMap(loc) {
     if (!el.locationMap) { return; }
     var lat = loc && typeof loc.lat === 'number' ? loc.lat : null;
@@ -714,18 +701,13 @@
     var hasCoords = isFinite(lat) && isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
 
     if (!hasCoords) {
-      serverGeo = null;
       el.locationMarker.hidden = true;
       el.locationMap.hidden = true;
-      hideClientLink();
       return;
     }
 
-    serverGeo = { lat: lat, lon: lon };
-
     // Zoom the map MAP_ZOOM× centered on the server. The image is CSS-transformed so the
-    // server world point lands at the container centre; markers/line are placed in the
-    // same zoomed container space (see toContainerPercent) so everything stays aligned.
+    // server world point lands at the container centre.
     var s = projectPercent(lat, lon);
     el.locationMapImg.style.transformOrigin = '0 0';
     el.locationMapImg.style.transform =
@@ -736,84 +718,11 @@
     el.locationMarker.style.top = '50%';
     el.locationMarker.hidden = false;
     el.locationMap.hidden = false;
-
-    if (clientGeo) {
-      drawClientLink();
-    } else {
-      requestClientLocation();
-    }
   }
 
   // Equirectangular (plate-carrée) projection matching world.svg (viewBox 0 0 1000 500).
   function projectPercent(lat, lon) {
     return { x: (lon + 180) / 360 * 100, y: (90 - lat) / 180 * 100 };
-  }
-
-  // Maps a world point to its on-screen percent within the zoomed container, using the
-  // same centre-on-server, scale-by-MAP_ZOOM transform applied to the map image.
-  function toContainerPercent(lat, lon) {
-    var w = projectPercent(lat, lon);
-    var s = projectPercent(serverGeo.lat, serverGeo.lon);
-    return { x: 50 + MAP_ZOOM * (w.x - s.x), y: 50 + MAP_ZOOM * (w.y - s.y) };
-  }
-
-  function hideClientLink() {
-    if (el.locLine) { el.locLine.hidden = true; }
-    if (el.clientMarker) { el.clientMarker.hidden = true; }
-    if (el.locationDistance) { el.locationDistance.hidden = true; }
-  }
-
-  // Asks the browser for the client's location once. Requires a secure context and
-  // user consent; on denial or error the line is simply omitted.
-  function requestClientLocation() {
-    if (clientGeoRequested || !navigator.geolocation) { return; }
-    clientGeoRequested = true;
-    navigator.geolocation.getCurrentPosition(function (pos) {
-      clientGeo = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-      drawClientLink();
-    }, function () {
-      // Permission denied or unavailable: keep showing just the server marker.
-    }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
-  }
-
-  // Draws the client marker, the connecting line, and the great-circle distance.
-  function drawClientLink() {
-    if (!clientGeo || !serverGeo || el.locationMap.hidden) { return; }
-    var c = toContainerPercent(clientGeo.lat, clientGeo.lon);
-    var s = { x: 50, y: 50 };
-
-    el.clientMarker.style.left = c.x + '%';
-    el.clientMarker.style.top = c.y + '%';
-    el.clientMarker.hidden = false;
-
-    // Overlay SVG viewBox is 0..1000 x / 0..500 y, so percentages map to those units.
-    el.locLine.setAttribute('x1', String(c.x * 10));
-    el.locLine.setAttribute('y1', String(c.y * 5));
-    el.locLine.setAttribute('x2', String(s.x * 10));
-    el.locLine.setAttribute('y2', String(s.y * 5));
-    el.locLine.hidden = false;
-
-    var km = haversineKm(clientGeo, serverGeo);
-    el.locationDistance.textContent = t('loc.distance', formatDistance(km));
-    el.locationDistance.hidden = false;
-  }
-
-  // Great-circle distance in kilometres between two {lat, lon} points.
-  function haversineKm(a, b) {
-    var R = 6371;
-    var toRad = function (d) { return d * Math.PI / 180; };
-    var dLat = toRad(b.lat - a.lat);
-    var dLon = toRad(b.lon - a.lon);
-    var lat1 = toRad(a.lat);
-    var lat2 = toRad(b.lat);
-    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-  }
-
-  function formatDistance(km) {
-    if (km >= 100) { return Math.round(km / 10) * 10; }
-    return Math.round(km);
   }
 
   function locationSubText(info) {
