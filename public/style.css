@@ -383,7 +383,6 @@ h2 {
   stroke-dasharray: 327;
   stroke-dashoffset: 327;
   transition: stroke-dashoffset 520ms ease, stroke 320ms ease;
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--score-color, var(--accent)), transparent 55%));
 }
 
 .score-center {
