@@ -561,22 +561,13 @@
 
   async function uploadWorker(signal, payload, measuredBytes, measureStart, endAt) {
     while (!signal.aborted && performance.now() < endAt) {
-      var requestStarted = performance.now();
       try {
-        var response = await fetch('/api/upload', {
-          method: 'POST',
-          cache: 'no-store',
-          headers: { 'Content-Type': 'application/octet-stream' },
-          body: payload,
-          signal: signal
+        await uploadOnce(signal, payload, function (deltaBytes) {
+          var now = performance.now();
+          if (now >= measureStart && now <= endAt) {
+            measuredBytes.value += deltaBytes;
+          }
         });
-        if (!response.ok) {
-          throw new Error(t('error.uploadHttp', response.status));
-        }
-        await response.text();
-        if (requestStarted >= measureStart) {
-          measuredBytes.value += payload.byteLength;
-        }
       } catch (err) {
         if (isAbort(err) || signal.aborted || performance.now() >= endAt) {
           break;
@@ -584,6 +575,60 @@
         throw err;
       }
     }
+  }
+
+  // Counts bytes as they are actually sent (via upload progress events) instead
+  // of only crediting fully-completed requests. On asymmetric links a single
+  // upload can span the whole measurement window, so completion-based counting
+  // would report 0; progress-based counting credits the bytes pushed in-window.
+  function uploadOnce(signal, payload, onBytes) {
+    return new Promise(function (resolve, reject) {
+      if (signal.aborted) {
+        var aborted = new Error('The operation was aborted.');
+        aborted.name = 'AbortError';
+        reject(aborted);
+        return;
+      }
+      var xhr = new XMLHttpRequest();
+      var lastLoaded = 0;
+      var onAbort = function () { xhr.abort(); };
+
+      var credit = function (loaded) {
+        var delta = loaded - lastLoaded;
+        lastLoaded = loaded;
+        if (delta > 0) {
+          onBytes(delta);
+        }
+      };
+
+      xhr.upload.onprogress = function (event) {
+        credit(event.loaded);
+      };
+      xhr.onload = function () {
+        credit(payload.byteLength);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(t('error.uploadHttp', xhr.status)));
+        }
+      };
+      xhr.onerror = function () {
+        reject(new Error(t('error.uploadHttp', xhr.status || 0)));
+      };
+      xhr.onabort = function () {
+        var err = new Error('The operation was aborted.');
+        err.name = 'AbortError';
+        reject(err);
+      };
+      xhr.onloadend = function () {
+        signal.removeEventListener('abort', onAbort);
+      };
+
+      signal.addEventListener('abort', onAbort);
+      xhr.open('POST', '/api/upload', true);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.send(payload);
+    });
   }
 
   function makeRandomPayload(size) {
